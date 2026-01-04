@@ -1,10 +1,7 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { MentorshipProfile, Mission, Lesson } from "./types";
 
-/**
- * 💡 가이드라인 준수: API 키는 오직 process.env.API_KEY에서만 가져옵니다.
- * Vite define 설정을 통해 브라우저에서도 안전하게 접근 가능합니다.
- */
 const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 };
@@ -26,18 +23,33 @@ export const generateMentorDialogueSession = async (
 ) => {
   const isIntro = phase === 'INTRO';
   
+  // 챕터 1-1-1: 실무진 느낌의 10회 이상 대화 (Hardcoded for immersion)
   if (mission.id === '1-1' && isIntro && lesson.id === '1-1-1') {
     return [
-      { speaker: "사라 사수", text: `안녕하세요, **${nickname}**님! 오늘부터 저와 함께 데이터 분석의 진짜 실무를 배우게 될 거예요.`, isUserTurn: false },
-      { speaker: nickname, text: `네, 사라님! 잘 부탁드립니다. 실무에서 대시보드가 실제로 어떻게 쓰이는지 궁금해요.`, isUserTurn: true },
-      { speaker: "사라 사수", text: `좋은 질문이에요. 단순히 예쁜 차트가 아니라 '돈을 벌어다 주는' 대시보드를 봐야 하거든요.`, isUserTurn: false },
-      { speaker: "사라 사수", text: `제가 준비한 [게임 로그 대시보드](https://public.tableau.com/app/profile/.83057946/viz/12-3_GameLogDashboard_17534330076730/GameDashboard)를 먼저 보세요. 유저가 어디서 이탈하는지 한눈에 보일 거예요.`, isUserTurn: false },
-      { speaker: "사라 사수", text: `다 보셨다면 가이드북에서 지표 설계의 원칙을 확인해 볼까요?`, isUserTurn: false }
+      { speaker: "사라 사수", text: `반가워요, **${nickname}**님! 오늘부터 우리 팀의 데이터 분석 실무를 함께하게 됐네요. 준비 되셨나요?`, isUserTurn: false },
+      { speaker: nickname, text: `네, 사라님! 첫 출근이라 긴장되는데 실무에서 데이터가 어떻게 쓰이는지 정말 궁금합니다.`, isUserTurn: true },
+      { speaker: "사라 사수", text: `좋은 자세예요. 보통 신입 분석가들이 가장 많이 하는 실수가 '예쁜 차트'를 만드는 데만 집중하는 거예요.`, isUserTurn: false },
+      { speaker: "사라 사수", text: `하지만 실무는 달라요. 우리가 만든 대시보드 하나가 수억 원의 마케팅 예산을 결정하거든요.`, isUserTurn: false },
+      { speaker: nickname, text: `수억 원이나요? 단순한 보고용인 줄 알았는데 책임감이 막중해지네요.`, isUserTurn: true },
+      { speaker: "사라 사수", text: `맞아요. 그래서 우리는 'Actionable'한 데이터를 봐야 해요. 즉, '그래서 뭘 해야 하는데?'라는 질문에 답을 줄 수 있어야 하죠.`, isUserTurn: false },
+      { speaker: "사라 사수", text: `자, 제가 예전에 만든 [게임 로그 대시보드](https://public.tableau.com/app/profile/.83057946/viz/12-3_GameLogDashboard_17534330076730/GameDashboard) 링크를 드릴게요. 이걸 보면서 생각해보세요.`, isUserTurn: false },
+      { speaker: "사라 사수", text: `이 대시보드에서 '유저 이탈'을 막기 위해 가장 먼저 확인해야 할 지표가 무엇 같나요?`, isUserTurn: false },
+      { speaker: nickname, text: `음... 접속 시간이나 결제 금액일까요? 잠시만요, 링크 들어가서 직접 확인해볼게요!`, isUserTurn: true },
+      { speaker: "사라 사수", text: `좋아요. 대시보드를 둘러보면서 **'비즈니스 임팩트'** 관점에서 숫자를 해석해보세요. 다 보셨으면 저에게 알려주세요.`, isUserTurn: false },
+      { speaker: "사라 사수", text: `참, 가이드북의 1.1 섹션에 제가 정리해둔 실무 사례들도 꼭 병행해서 확인하시고요. 그럼 시작할까요?`, isUserTurn: false }
     ];
   }
 
   const ai = getAI();
-  const prompt = `현재 페이즈: ${phase === 'INTRO' ? '학습 시작 전 오리엔테이션' : '학습 완료 후 실무 요약'}. 사용자 목표: ${profile.industry}의 ${profile.role}. 주제: ${lesson.title}. ${nickname} 사원에게 줄 짧은 대화문 3개를 생성하세요.`;
+  const prompt = `
+  현재 페이즈: ${phase === 'INTRO' ? '업무 시작 전 브리핑' : '업무 완료 후 피드백'}
+  사용자 목표: ${profile.industry} 산업의 ${profile.role} 지망
+  레슨 주제: ${lesson.title}
+  
+  위 맥락에 맞춰 ${nickname} 사원에게 줄 **최소 10개 이상의 주고받는 대화문**을 생성해 주세요. 
+  단순한 정보 전달이 아니라, 실무에서 시니어와 주니어가 메신저로 대화하는 듯한 현장감을 살려주세요.
+  사용자의 턴(isUserTurn: true)도 적절히 섞어 자연스러운 대화 흐름을 만드세요.
+  `;
   
   try {
     const response = await ai.models.generateContent({
@@ -71,7 +83,7 @@ export const generateMentorDialogueSession = async (
     return result.dialogues;
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return [{ speaker: "사라 사수", text: "잠시 연결이 원활하지 않네요. 가이드북을 먼저 확인해보시겠어요?", isUserTurn: false }];
+    return [{ speaker: "사라 사수", text: "서연님, 잠시 서버 이슈가 있네요. 가이드북을 먼저 확인해주시겠어요?", isUserTurn: false }];
   }
 };
 
@@ -79,16 +91,16 @@ export const askMentor = async (message: string) => {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: message,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION + " 답변 끝에 주니어 분석가가 성장할 수 있는 응원 한마디를 덧붙여주세요.",
+        systemInstruction: SYSTEM_INSTRUCTION + " 실무적인 조언을 곁들여 상세히 답변하고, 주니어를 격려하며 마무리하세요.",
       }
     });
-    return response.text || "죄송해요, 답변을 생성하지 못했어요.";
+    return response.text || "질문을 이해하지 못했어요. 다시 말씀해주시겠어요?";
   } catch (error) {
     return "연결 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
   }
 };
 
-export const generateLearningPath = async (p: any, g: any) => ({ proficiency: p, goal: g, recommendedMissionIds: ['1-1', '2-1'], customPlan: "최단기 실무 마스터 경로" });
+export const generateLearningPath = async (p: any, g: any) => ({ proficiency: p, goal: g, recommendedMissionIds: ['1-1', '2-1'], customPlan: "데이터 기반 의사결정 역량 강화 경로" });
