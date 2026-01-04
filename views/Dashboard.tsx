@@ -33,7 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, onNavigateToArchive }) => 
             <h2 className="text-2xl font-bold mb-2 tracking-tight leading-tight">
               {`반가워요, ${stats.nickname || stats.userName}님!`}
               <br />
-              <span className="opacity-90">오늘의 학습을 시작해볼까요?</span>
+              <span className="opacity-90 font-semibold">오늘의 학습을 시작해볼까요?</span>
             </h2>
             <p className="text-indigo-100 font-medium mb-6 max-w-md text-[13px] leading-relaxed opacity-80">
               사수 Sarah 팀장님이 준비한 실무 가이드를 확인하고 성장을 시작해 보세요. 현재 전체 커리큘럼의 {stats.progress}%를 달성했습니다.
