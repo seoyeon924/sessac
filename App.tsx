@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -11,12 +10,15 @@ import Leaderboard from './views/Leaderboard';
 import { ViewType, Level, UserStats, Mission } from './types';
 import { MISSIONS } from './constants';
 import { supabase } from './supabaseClient';
+// Fix: Added missing Loader2 import from lucide-react to resolve "Cannot find name 'Loader2'" error on line 129
+import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setView] = useState<ViewType>(ViewType.DASHBOARD);
   const [activeMission, setActiveMission] = useState<Mission | null>(null);
   const [missionStates, setMissionStates] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState(true);
   
   const [stats, setStats] = useState<UserStats>(() => {
     const saved = localStorage.getItem('tq_user_stats');
@@ -25,6 +27,40 @@ const App: React.FC = () => {
       progress: 0, completedMissions: 0, totalMissions: MISSIONS.length, learningHours: 0
     };
   });
+
+  // 세션 리스너 및 초기화
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        // 유저 정보 로드
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', session.user.email)
+          .single();
+
+        if (profile) {
+          const loadedStats = {
+            ...stats,
+            userName: session.user.user_metadata.full_name || '사용자',
+            email: session.user.email || '',
+            nickname: profile.nickname,
+            xp: profile.xp,
+            level: profile.level as Level,
+            progress: profile.progress,
+            completedMissions: profile.completed_missions
+          };
+          setStats(loadedStats);
+          setIsAuthenticated(true);
+        }
+      } else {
+        setIsAuthenticated(false);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const syncWithSupabase = useCallback(async (newStats: UserStats) => {
     if (!newStats.email || !isAuthenticated) return;
@@ -46,29 +82,16 @@ const App: React.FC = () => {
     }
   }, [stats, isAuthenticated, syncWithSupabase]);
 
-  const handleLoginComplete = async (user: { name: string; email: string; nickname: string }) => {
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', user.email)
-      .single();
-
-    if (existingProfile) {
-      setStats({
-        ...stats,
-        userName: user.name,
-        email: user.email,
-        nickname: existingProfile.nickname,
-        xp: existingProfile.xp,
-        level: existingProfile.level as Level,
-        progress: existingProfile.progress,
-        completedMissions: existingProfile.completed_missions
-      });
-      // 완료된 미션 상태 복구 (간단히 누적 개수 기반으로 락 해제)
-    } else {
-      setStats(prev => ({ ...prev, userName: user.name, nickname: user.nickname, email: user.email }));
-    }
-    
+  const handleLoginComplete = (user: { name: string; email: string; nickname: string; xp: number; progress: number; completedMissions: number }) => {
+    setStats({
+      ...stats,
+      userName: user.name,
+      email: user.email,
+      nickname: user.nickname,
+      xp: user.xp,
+      progress: user.progress,
+      completedMissions: user.completedMissions
+    });
     setIsAuthenticated(true);
     setView(ViewType.DASHBOARD);
   };
@@ -100,6 +123,15 @@ const App: React.FC = () => {
     setActiveMission(null);
     setView(ViewType.MISSION_ARCHIVE);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+        <p className="text-slate-400 font-bold text-sm tracking-widest uppercase">System Initializing...</p>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) return <Login onComplete={handleLoginComplete} />;
 
